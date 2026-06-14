@@ -82,6 +82,7 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 <button onclick="showScreen('home')" id="nav-home" class="active">🐉 Dragon</button>
 <button onclick="showScreen('quests')" id="nav-quests">📜 Quests</button>
 <button onclick="showScreen('hall')" id="nav-hall">🏆 Hero Hall</button>
+<button onclick="showScreen('rulebook')" id="nav-rulebook">📖 Rulebook</button>
 <button onclick="showScreen('parent')" id="nav-parent">⚙ Parent</button>
 </div>
 <section id="home" class="screen active">
@@ -106,6 +107,13 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 </section>
 <section id="quests" class="screen"><div class="card"><h2>Quest Board</h2><div class="grid" id="questCards"></div></div></section>
 <section id="hall" class="screen"><div class="card"><h2>Hero Level Road</h2><div class="level-road" id="levelRoad"></div></div><div class="card"><h2>Achievements</h2><div class="achievements" id="achievements"></div></div></section>
+<section id="rulebook" class="screen">
+<div class="card">
+<h2>📖 Rulebook</h2>
+<p>The Hero's Journey Agreement and Rules Reference.</p>
+<p>This section will contain the complete agreement,hyperlinked table of contents,reward tables,and article references.</p>
+</div>
+</section>
 <section id="parent" class="screen">
 <div class="card"><h2>Cloud Sync</h2><p id="syncStatus">Connecting to Firebase...</p></div>
 <div class="card"><h2>Progress Ledger</h2><table><thead><tr><th>Quest</th><th>Count</th><th>Dragon Damage</th><th>Hero Points</th></tr></thead><tbody id="ledger"></tbody></table></div>
