@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>The Hero's Journey RPG Dashboard</title>
+<!-- Hero Journey App: Legendary Strike moved to Dragon screen -->
 <style>
 :root{
   --bg:#120f1b; --panel:#211a2e; --ink:#f7efd6; --muted:#c8b98a;
@@ -79,6 +80,16 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 .rule-section-title{color:#ffdb77;font-size:22px;margin:18px 0 8px;}
 @media(max-width:800px){.rulebook-toc{columns:1}.rule-table{font-size:14px}.rule-table th,.rule-table td{padding:8px 5px}}
 @media(max-width:800px){.boss{grid-template-columns:1fr}.dragon-art{font-size:120px}.level-road{grid-template-columns:1fr}.nav{grid-template-columns:repeat(2,1fr)}.hp-big{font-size:46px}}
+
+.legend-strike{text-align:center;background:linear-gradient(180deg,rgba(45,34,60,.96),rgba(28,18,42,.96));}
+.legend-strike h2{font-size:34px;}
+.legend-strike .strike-button{min-width:min(420px,90%);font-size:18px;margin:8px auto 12px;display:inline-block;}
+.legend-strike p{max-width:760px;margin:8px auto;line-height:1.45;}
+.legend-strike .locked-note{color:var(--muted);}
+.legend-strike .strike-lines{display:flex;align-items:center;gap:18px;justify-content:center;margin:8px 0;}
+.legend-strike .strike-lines:before,.legend-strike .strike-lines:after{content:"✦";color:var(--gold);font-size:26px;flex:1;max-width:280px;border-bottom:1px solid var(--gold);line-height:0.1em;}
+@media(max-width:800px){.legend-strike h2{font-size:28px}.legend-strike .strike-lines:before,.legend-strike .strike-lines:after{max-width:90px}}
+
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -114,6 +125,13 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 <div class="hero-stat"><div class="label">Next Level</div><div class="value" id="nextLevel">10 HP</div></div>
 </div></div>
 <div class="card"><h2>Bounty Board</h2><div class="grid" id="bounty"></div></div>
+<div class="card legend-strike">
+<h2>⚡ Legendary Strike</h2>
+<div class="strike-lines"></div>
+<button class="action strike-button" onclick="applyLegend()">Apply Legendary Strike</button>
+<p class="locked-note"><b>When it can be used:</b> Legendary Strike may be used once Killian reaches Legend status by earning fifty (50) Lifetime Hero Points.</p>
+<p>This one-time strike applies the eighty (80) day Legend reduction to the Ancient Dragon.</p>
+</div>
 </section>
 <section id="quests" class="screen"><div class="card"><h2>Quest Board</h2><div class="grid" id="questCards"></div></div></section>
 <section id="hall" class="screen"><div class="card"><h2>Hero Level Road</h2><div class="level-road" id="levelRoad"></div></div><div class="card"><h2>Achievements</h2><div class="achievements" id="achievements"></div></div></section>
@@ -335,7 +353,7 @@ function render(){const ds=dragonStage();document.getElementById("dragonName").t
 function bountyItem(title,msg){return '<div class="quest-card"><div class="quest-name">'+title+'</div><div class="quest-reward">'+msg+'</div></div>'}
 function renderBounty(){const r=nextMs(state.books,settings.readingMs),m=nextMs(state.meals,settings.mealMs),c=nextMs(state.coop,settings.coopMs);const langRem=14-(state.language%14||14);document.getElementById("bounty").innerHTML=[bountyItem("📚 Reading",r?(r-state.books)+" more book(s) to next HP":"Reading HP maxed. Books still damage Dragon."),bountyItem("🍽 Meals",m?(m-state.meals)+" more meal point(s) to next HP":"Meal HP maxed. Meals still damage Dragon."),bountyItem("🗣 Respect",(state.language>0&&state.language%14===0?14:langRem)+" more Merit Day(s) to next HP"),bountyItem("🤝 Brotherhood",c?(c-state.coop)+" more credit(s) to next HP":"Brotherhood HP maxed. Credits still damage Dragon.")].join("");}
 function questCard(icon,name,count,days,hpText,addName,type,extra){return '<div class="quest-card"><div class="quest-name">'+icon+' '+name+'</div><div class="quest-reward">'+days+' Dragon damage • '+hpText+'</div><p>Count: <b>'+count+'</b></p><div class="btns"><button class="action" onclick="add(\''+type+'\')">+ '+addName+'</button><button class="action secondary" onclick="remove(\''+type+'\')">-</button></div>'+(extra||"")+'</div>'}
-function renderQuests(){document.getElementById("questCards").innerHTML=[questCard("📚","Path of Knowledge",state.books,readingDays(),readingHP()+"/15 HP","Book","books"),questCard("🍽","Family Table",state.meals,mealDays(),mealHP()+"/15 HP","Meal","meals"),questCard("🗣","Path of Respect",state.language,langDays(),langHP()+"/10 HP","Day","language",'<div class="btns"><button class="action good" onclick="spendRecovery()">Spend 1 HP Recovery</button></div>'),questCard("🤝","Path of Brotherhood",state.coop,coopDays(),coopHP()+"/10 HP","Credit","coop",'<div class="btns"><button class="action" onclick="applyLegend()">Apply Legend Strike</button></div>')].join("");}
+function renderQuests(){document.getElementById("questCards").innerHTML=[questCard("📚","Path of Knowledge",state.books,readingDays(),readingHP()+"/15 HP","Book","books"),questCard("🍽","Family Table",state.meals,mealDays(),mealHP()+"/15 HP","Meal","meals"),questCard("🗣","Path of Respect",state.language,langDays(),langHP()+"/10 HP","Day","language",'<div class="btns"><button class="action good" onclick="spendRecovery()">Spend 1 HP Recovery</button></div>'),questCard("🤝","Path of Brotherhood",state.coop,coopDays(),coopHP()+"/10 HP","Credit","coop")].join("");}
 function renderLevels(){document.getElementById("levelRoad").innerHTML=settings.levels.map(x=>{const cls=hp()>=x[1]?"done":(nextLevel()&&nextLevel()[0]===x[0]?"current":"");return '<div class="level '+cls+'"><div class="name">'+x[0]+'</div><div>'+(hp()>=x[1]?"✓":hp()+" / "+x[1])+'</div><div class="small">'+x[2]+'</div></div>'}).join("");}
 function badge(done,icon,title,sub){return '<div class="badge '+(done?"done":"")+'"><div class="icon">'+icon+'</div><b>'+title+'</b><br><span class="small">'+sub+'</span></div>'}
 function renderAch(){document.getElementById("achievements").innerHTML=[badge(state.books>=1,"📖","First Book","Complete 1 book"),badge(hp()>=1,"⭐","First Hero Point","Earn 1 HP"),badge(state.meals>=10,"🍽","Family Table I","Earn 10 meal points"),badge(state.language>=14,"🗣","Respect I","Earn 14 merit days"),badge(state.coop>=5,"🤝","Brotherhood I","Earn 5 credits"),badge(hp()>=10,"⚔","Apprentice","Reach 10 HP"),badge(hp()>=20,"🛡","Adventurer","Reach 20 HP"),badge(hp()>=30,"📚","Scholar","Reach 30 HP"),badge(hp()>=40,"🏅","Champion","Reach 40 HP"),badge(hp()>=50,"👑","Legend","Reach 50 HP"),badge(remaining()<=0,"🐉","Dragon Defeated","Reduce all 730 days")].join("");}
