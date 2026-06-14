@@ -68,6 +68,11 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 .toast.show{transform:translateX(-50%) translateY(0)}
 @media(max-width:800px){.boss{grid-template-columns:1fr}.dragon-art{font-size:120px}.level-road{grid-template-columns:1fr}.nav{grid-template-columns:repeat(2,1fr)}.hp-big{font-size:46px}}
 </style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+
 </head>
 <body>
 <div class="toast" id="toast"></div>
@@ -102,6 +107,7 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 <section id="quests" class="screen"><div class="card"><h2>Quest Board</h2><div class="grid" id="questCards"></div></div></section>
 <section id="hall" class="screen"><div class="card"><h2>Hero Level Road</h2><div class="level-road" id="levelRoad"></div></div><div class="card"><h2>Achievements</h2><div class="achievements" id="achievements"></div></div></section>
 <section id="parent" class="screen">
+<div class="card"><h2>Cloud Sync</h2><p id="syncStatus">Connecting to Firebase...</p></div>
 <div class="card"><h2>Progress Ledger</h2><table><thead><tr><th>Quest</th><th>Count</th><th>Dragon Damage</th><th>Hero Points</th></tr></thead><tbody id="ledger"></tbody></table></div>
 <div class="card"><details open><summary>Parent Controls</summary><div class="grid">
 <div><label>Books Completed</label><input id="booksInput" type="number"></div>
@@ -162,6 +168,104 @@ function saveManual(){state.books=+booksInput.value||0;state.meals=+mealsInput.v
 function saveSettings(){settings.start=startInput.value;settings.duration=+durationInput.value||730;settings.legendBonus=+legendInput.value||80;log("Settings updated.");save();}
 function resetAll(){if(confirm("Reset all progress?")){state={books:0,meals:0,language:0,coop:0,spent:0,legend:false,log:[]};save();}}
 render();
+</script>
+
+<script>
+(function(){
+  const firebaseConfig = {
+    apiKey: "AIzaSyA3KMGd68MmRETrm49KnMsGpuULkVbFdWY",
+    authDomain: "herojourney-97431.firebaseapp.com",
+    projectId: "herojourney-97431",
+    storageBucket: "herojourney-97431.firebasestorage.app",
+    messagingSenderId: "623278589011",
+    appId: "1:623278589011:web:d43eb62d7b2f5c5ddb72a6"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const progressRef = db.collection("heroJourney").doc("main");
+
+  let cloudReady = false;
+  let applyingCloudUpdate = false;
+  const originalSave = window.save;
+
+  function setSyncStatus(message){
+    const el = document.getElementById("syncStatus");
+    if(el) el.textContent = message;
+  }
+
+  function cleanStateForCloud(){
+    return {
+      books: Number(state.books || 0),
+      meals: Number(state.meals || 0),
+      language: Number(state.language || 0),
+      coop: Number(state.coop || 0),
+      spent: Number(state.spent || 0),
+      legend: Boolean(state.legend || false),
+      log: Array.isArray(state.log) ? state.log.slice(0,60) : []
+    };
+  }
+
+  function normalizeCloudState(data){
+    return {
+      books: Number(data.books || 0),
+      meals: Number(data.meals || 0),
+      language: Number(data.language || 0),
+      coop: Number(data.coop || 0),
+      spent: Number(data.spent || 0),
+      legend: Boolean(data.legend || false),
+      log: Array.isArray(data.log) ? data.log.slice(0,60) : []
+    };
+  }
+
+  window.save = function(){
+    localStorage.setItem("hj_rpg_state", JSON.stringify(state));
+    localStorage.setItem("hj_rpg_settings", JSON.stringify(settings));
+
+    if(cloudReady && !applyingCloudUpdate){
+      progressRef.set(cleanStateForCloud(), {merge:true}).then(() => {
+        setSyncStatus("Cloud sync active. Saved: " + new Date().toLocaleTimeString());
+      }).catch((error) => {
+        setSyncStatus("Cloud save failed: " + error.message);
+        console.error(error);
+      });
+    }
+
+    render();
+  };
+
+  async function startCloudSync(){
+    try{
+      setSyncStatus("Signing in anonymously...");
+      await auth.signInAnonymously();
+      setSyncStatus("Connected. Loading cloud progress...");
+      cloudReady = true;
+
+      progressRef.onSnapshot(async (doc) => {
+        applyingCloudUpdate = true;
+        if(!doc.exists){
+          await progressRef.set(cleanStateForCloud(), {merge:true});
+          setSyncStatus("Cloud document created.");
+        } else {
+          state = normalizeCloudState(doc.data());
+          localStorage.setItem("hj_rpg_state", JSON.stringify(state));
+          setSyncStatus("Cloud sync active. Loaded: " + new Date().toLocaleTimeString());
+          render();
+        }
+        applyingCloudUpdate = false;
+      }, (error) => {
+        setSyncStatus("Cloud sync error: " + error.message);
+        console.error(error);
+      });
+    } catch(error){
+      setSyncStatus("Firebase connection failed: " + error.message);
+      console.error(error);
+    }
+  }
+
+  startCloudSync();
+})();
 </script>
 </body>
 </html>
