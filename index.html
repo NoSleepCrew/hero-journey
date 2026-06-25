@@ -8,6 +8,7 @@
 <!-- Hero Journey App: Legendary Strike moved to Dragon screen -->
 <!-- Hero Journey App: Renamed Family Table to Path of Banqueting -->
 <!-- Hero Journey App: Reading now tracks pages plus completion bonus -->
+<!-- Hero Journey App: Parent Code now syncs through Firebase as a hash -->
 <style>
 :root{
   --bg:#120f1b; --panel:#211a2e; --ink:#f7efd6; --muted:#c8b98a;
@@ -337,8 +338,9 @@ details summary{font-size:22px;color:var(--gold);cursor:pointer;font-weight:900}
 <script>
 const defaults={start:"2026-06-13",duration:730,legendBonus:80,levels:[["Apprentice",10,"$10"],["Adventurer",20,"$20"],["Scholar",30,"$40"],["Champion",40,"$80"],["Legend",50,"$100"]],readingMs:[1,3,5,7,9,11,13,15,17,19,21,23,25,27,29],mealMs:[1,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150],coopMs:[1,5,10,15,20,25,30,35,40,45,50]};
 let settings=JSON.parse(localStorage.getItem("hj_rpg_settings")||"null")||defaults;
-let state=JSON.parse(localStorage.getItem("hj_rpg_state")||"null")||{pages:0,books:0,meals:0,language:0,coop:0,spent:0,legend:false,log:[]};
+let state=JSON.parse(localStorage.getItem("hj_rpg_state")||"null")||{pages:0,books:0,meals:0,language:0,coop:0,spent:0,legend:false,parentCodeHash:"",log:[]};
 if(state.pages===undefined)state.pages=0;
+if(state.parentCodeHash===undefined)state.parentCodeHash="";
 function save(){localStorage.setItem("hj_rpg_state",JSON.stringify(state));localStorage.setItem("hj_rpg_settings",JSON.stringify(settings));render();}
 function log(msg){state.log.unshift(new Date().toLocaleString()+" — "+msg);state.log=state.log.slice(0,60);}
 function toast(msg){const t=document.getElementById("toast");t.innerHTML=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
@@ -352,8 +354,16 @@ function showScreen(id){
   document.getElementById("nav-"+id).classList.add("active");
 }
 
-function getParentCode(){return localStorage.getItem("hj_parent_code")||"";}
-function setParentCode(code){localStorage.setItem("hj_parent_code",code);}
+function hashParentCode(code){
+  let hash=0;
+  for(let i=0;i<code.length;i++){
+    hash=((hash<<5)-hash)+code.charCodeAt(i);
+    hash|=0;
+  }
+  return String(hash);
+}
+function getParentCodeHash(){return state.parentCodeHash||"";}
+function setParentCode(code){state.parentCodeHash=hashParentCode(code);save();}
 function parentUnlocked(){
   const until=Number(sessionStorage.getItem("hj_parent_unlocked_until")||0);
   return Date.now()<until;
@@ -366,19 +376,19 @@ function lockParentSession(){
   toast("🔒 Parent controls locked");
 }
 function requestParentCode(reason){
-  let code=getParentCode();
-  if(!code){
+  let codeHash=getParentCodeHash();
+  if(!codeHash){
     const created=prompt("Create a Parent Code. This will be required before changing points or opening Parent controls.");
     if(!created) return false;
     const confirmCode=prompt("Re-enter Parent Code to confirm.");
     if(created!==confirmCode){alert("Codes did not match. Parent Code was not created.");return false;}
     setParentCode(created);
     unlockParentSession();
-    toast("🔐 Parent Code created");
+    toast("🔐 Parent Code created and synced");
     return true;
   }
   const entered=prompt("Parent Code required: "+reason);
-  if(entered===code){
+  if(hashParentCode(entered)===codeHash){
     unlockParentSession();
     return true;
   }
@@ -391,10 +401,10 @@ function requireParent(reason,action){
   }
 }
 function changeParentCode(){
-  const current=getParentCode();
-  if(current){
+  const currentHash=getParentCodeHash();
+  if(currentHash){
     const entered=prompt("Enter current Parent Code.");
-    if(entered!==current){alert("Incorrect Parent Code.");return;}
+    if(hashParentCode(entered)!==currentHash){alert("Incorrect Parent Code.");return;}
   }
   const newCode=prompt("Enter new Parent Code.");
   if(!newCode){alert("Parent Code was not changed.");return;}
@@ -402,7 +412,7 @@ function changeParentCode(){
   if(newCode!==confirmCode){alert("Codes did not match. Parent Code was not changed.");return;}
   setParentCode(newCode);
   unlockParentSession();
-  toast("🔐 Parent Code updated");
+  toast("🔐 Parent Code updated and synced");
 }
 
 function countMs(n,arr,max){return Math.min(max,arr.filter(x=>n>=x).length);}
@@ -439,7 +449,7 @@ function renderLedger(){const rows=[["Reading",(state.pages||0)+" pages / "+stat
 function renderParent(){document.getElementById("pagesInput").value=state.pages||0;document.getElementById("booksInput").value=state.books;document.getElementById("mealsInput").value=state.meals;document.getElementById("languageInput").value=state.language;document.getElementById("coopInput").value=state.coop;document.getElementById("spentInput").value=state.spent;document.getElementById("startInput").value=settings.start;document.getElementById("durationInput").value=settings.duration;document.getElementById("legendInput").value=settings.legendBonus;document.getElementById("log").innerHTML=state.log.map(x=>'<li>'+x+'</li>').join("");}
 function saveManual(){requireParent("Save manual changes",function(){state.pages=+pagesInput.value||0;state.books=+booksInput.value||0;state.meals=+mealsInput.value||0;state.language=+languageInput.value||0;state.coop=+coopInput.value||0;state.spent=+spentInput.value||0;log("Manual progress updated.");save();});}
 function saveSettings(){requireParent("Save system settings",function(){settings.start=startInput.value;settings.duration=+durationInput.value||730;settings.legendBonus=+legendInput.value||80;log("Settings updated.");save();});}
-function resetAll(){requireParent("Reset all progress",function(){if(confirm("Reset all progress?")){state={pages:0,books:0,meals:0,language:0,coop:0,spent:0,legend:false,log:[]};save();}});}
+function resetAll(){requireParent("Reset all progress",function(){if(confirm("Reset all progress?")){state={pages:0,books:0,meals:0,language:0,coop:0,spent:0,legend:false,parentCodeHash:state.parentCodeHash||"",log:[]};save();}});}
 render();
 </script>
 
@@ -477,6 +487,7 @@ render();
       coop: Number(state.coop || 0),
       spent: Number(state.spent || 0),
       legend: Boolean(state.legend || false),
+      parentCodeHash: String(state.parentCodeHash || ""),
       log: Array.isArray(state.log) ? state.log.slice(0,60) : []
     };
   }
@@ -490,6 +501,7 @@ render();
       coop: Number(data.coop || 0),
       spent: Number(data.spent || 0),
       legend: Boolean(data.legend || false),
+      parentCodeHash: String(data.parentCodeHash || ""),
       log: Array.isArray(data.log) ? data.log.slice(0,60) : []
     };
   }
